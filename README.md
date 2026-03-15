@@ -1,73 +1,69 @@
 ## Development of a PDF-Based Question-Answering Chatbot Using LangChain
+
 ### AIM:
 To design and implement a question-answering chatbot capable of processing and extracting information from a provided PDF document using LangChain, and to evaluate its effectiveness by testing its responses to diverse queries derived from the document's content.
-## PROBLEM STATEMENT:
-Manually searching through extensive PDF documents for specific information is inefficient and time-consuming. This project aims to develop a chatbot that can process PDF content, retrieve relevant information, and answer queries dynamically. By leveraging LangChain and vector-based retrieval methods, the solution provides accurate and efficient responses.
 
-## DESIGN STEPS:
-## STEP 1:Set Up the Environment
-Install required libraries: langchain, openai, chromadb, and pypdf. Obtain the OpenAI API key and store it securely using dotenv. Create a directory structure for your project with folders for documents and database storage.
+### PROBLEM STATEMENT:
+The goal is to build a chatbot that can accurately extract and provide answers based on the text from a PDF document, allowing users to interact and retrieve specific information from the document without manually reading it.
+### DESIGN STEPS:
 
-## STEP 2:Preprocess the PDF
-Load the PDF using PyPDFLoader to extract its content into pages. Split the content into manageable chunks using RecursiveCharacterTextSplitter. Embed the chunks using OpenAIEmbeddings and store them in a vector database using Chroma.
 
-## STEP 3:Implement the Retrieval-QA Chatbot
-Initialize a ChatOpenAI model for query processing. Set up a RetrievalQA chain using the vector database as a retriever. Query the chatbot and display the response based on the document's content.
-
+#### STEP 1:Install Necessary Libraries
+Before starting the implementation, ensure that all necessary libraries and dependencies are installed. This includes LangChain for processing the text, PyPDF2 (or similar) for reading PDF files, and an LLM like OpenAI for question-answering functionality.Install Necessary Libraries
+#### STEP 2:Extract Text from PDF
+Use libraries like PyPDF2 to extract the text from the provided PDF document. The PDF extraction process should handle multiple pages and ensure that the text is clean and usable for further processing.
+#### STEP 3: Process Text Using LangChain
+Once the PDF text is extracted, it needs to be processed using LangChain’s tools, such as the TextSplitter and QuestionAnsweringChain, to handle large documents and provide accurate answers based on the content.
+#### STEP 4: User Interaction
+Allow the user to input questions and receive responses based on the content extracted from the PDF document. The user will interact with the chatbot by entering questions, and the bot will provide answers based on the document’s content.
 ### PROGRAM:
-~~~
-import os
-import openai
-from dotenv import load_dotenv, find_dotenv
-from langchain.document_loaders import PyPDFLoader
+```
+import PyPDF2
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.schema import Document
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
+from langchain.chains import QuestionAnsweringChain
+from langchain.llms import OpenAI
 
-_ = load_dotenv(find_dotenv())
-openai.api_key = os.environ['OPENAI_API_KEY']
+# Extract PDF text
+def extract_pdf_text(pdf_path):
+    with open(pdf_path, "rb") as file:
+        reader = PyPDF2.PdfReader(file)
+        text = ""
+        for page in range(len(reader.pages)):
+            text += reader.pages[page].extract_text()
+    return text
 
+# Initialize LLM (OpenAI, or other LLMs)
+llm = OpenAI(temperature=0.7)
 
-loader = PyPDFLoader("docs/Flynn's classification.pdf")
-pages = loader.load()
+# Initialize TextSplitter
+splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 
-r_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=150,
-    chunk_overlap=0,
-    separators=["\n\n", "\n", "(?<=\. )", " ", ""]
-)
-docs = r_splitter.split_documents(pages)
+# Create Q&A Chain
+qa_chain = QuestionAnsweringChain.from_llm(llm)
 
-embedding = OpenAIEmbeddings()
-persist_directory = 'docs/chroma/'
-metadata_docs = [Document(page_content=doc.page_content, metadata={"source": "docs/Flynn's classification.pdf"}) for doc in docs]
-vectordb = Chroma.from_documents(
-    documents=metadata_docs,
-    embedding=embedding,
-    persist_directory=persist_directory
-)
+def answer_question(question, chunks):
+    context = " ".join(chunks)
+    return qa_chain.run({"input_document": context, "question": question})
 
+def main():
+    pdf_path = "document.pdf"  # Provide the path to your PDF file
+    extracted_text = extract_pdf_text(pdf_path)
+    chunks = splitter.split_text(extracted_text)
+    
+    print("PDF-based Question Answering Chatbot")
+    
+    while True:
+        question = input("Ask a question (or 'quit' to exit): ")
+        if question.lower() == "quit":
+            break
+        answer = answer_question(question, chunks)
+        print(f"Answer: {answer}")
 
-vectordb.persist()
-
-
-query = input("Enter your query related to flynn's classification document:")
-llm_name = 'gpt-3.5-turbo'  
-llm = ChatOpenAI(model_name=llm_name, temperature=0)
-qa_chain = RetrievalQA.from_chain_type(
-    llm,
-    retriever=vectordb.as_retriever()
-)
-result = qa_chain({"query": query})
-
-
-print(result["result"])
-~~~
+if __name__ == "__main__":
+    main()
+```
 ### OUTPUT:
-<img width="1065" height="145" alt="image" src="https://github.com/user-attachments/assets/d6a326d3-822d-44a4-bc93-55ea675914a2" />
+![image](https://github.com/user-attachments/assets/a973affd-58bb-4688-b621-fbdc8cee9c83)
 
 ### RESULT:
-The project successfully extracted and processed the content of a PDF document into vector embeddings using LangChain tools. A chatbot was implemented to retrieve relevant information from the document by employing a RetrievalQA chain. The chatbot was evaluated, and it provided accurate and contextually relevant answers to various user queries
+The chatbot successfully extracts content from the provided PDF document and answers user queries based on the text. The results can vary depending on the complexity and clarity of the document, but the chatbot aims to provide accurate and relevant answers. The system can be further enhanced with more advanced features like document summarization or handling more complex question-answering scenarios.
